@@ -435,6 +435,7 @@ function renderCards() {
     viewButton.type = "button";
     viewButton.className = "primary-button";
     viewButton.textContent = "View profile";
+    viewButton.setAttribute("aria-label", "View profile for " + profile.name);
     viewButton.addEventListener("click", () => openProfile(profile.id));
 
     const compareButton = document.createElement("button");
@@ -633,7 +634,7 @@ function renderComparison({ scroll = true, focusHeading = false } = {}) {
   elements.comparisonPanel.replaceChildren(grid, reflection);
   elements.comparisonPanel.hidden = false;
   if (focusHeading) elements.comparisonHeading.focus({ preventScroll: true });
-  if (scroll) elements.comparisonSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (scroll) elements.comparisonSection.scrollIntoView({ behavior: comparisonScrollBehavior(), block: "start" });
 }
 
 function comparisonBlock(title, content) {
@@ -831,14 +832,18 @@ function clearComparison() {
   renderCards();
   elements.resultsHeading.setAttribute("tabindex", "-1");
   elements.resultsHeading.focus({ preventScroll: true });
-  elements.resultsHeading.scrollIntoView({ behavior: "smooth", block: "start" });
+  elements.resultsHeading.scrollIntoView({ behavior: comparisonScrollBehavior(), block: "start" });
+}
+
+function comparisonScrollBehavior() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
 }
 
 function handleDialogKeydown(event) {
   if (event.key !== "Tab" || !elements.profileDialog.open) return;
   const focusable = [...elements.profileDialog.querySelectorAll(
     "a[href], button:not([disabled]), summary, textarea, input, select, [tabindex]:not([tabindex='-1'])"
-  )].filter((node) => !node.hasAttribute("disabled"));
+  )].filter((node) => !node.hasAttribute("disabled") && node.getClientRects().length > 0);
 
   if (!focusable.length) return;
   const first = focusable[0];
@@ -855,6 +860,15 @@ function handleDialogKeydown(event) {
 
 function init() {
   renderCards();
+
+  if (typeof ResizeObserver === "function") {
+    const updateTrayHeight = () => {
+      document.documentElement.style.setProperty("--compare-tray-height", elements.compareTray.offsetHeight + "px");
+    };
+    const observer = new ResizeObserver(updateTrayHeight);
+    observer.observe(elements.compareTray);
+    updateTrayHeight();
+  }
 
   elements.searchInput.addEventListener("input", (event) => {
     state.search = event.target.value;
